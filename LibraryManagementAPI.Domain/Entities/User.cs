@@ -19,5 +19,8 @@
 
         public ICollection<Loan> Loans { get; set; }
             = new List<Loan>();
+
+        public ICollection<UserLibrary> UserLibraries { get; set; }
+    = new List<UserLibrary>();
     }
 }

@@ -59,9 +59,6 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<int>("StockQuantity")
-                        .HasColumnType("int");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -100,6 +97,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("FineDate")
@@ -128,6 +126,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid>("FineId")
@@ -150,13 +149,59 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                     b.ToTable("FinePayments");
                 });
 
-            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Loan", b =>
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Library", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Libraries");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.LibraryBook", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("BookId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("LibraryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookId");
+
+                    b.HasIndex("LibraryId");
+
+                    b.ToTable("LibraryBooks");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Loan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("BorrowDate")
@@ -167,6 +212,9 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<Guid>("LibraryBookId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime?>("ReturnDate")
                         .HasColumnType("datetime2");
@@ -180,7 +228,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BookId");
+                    b.HasIndex("LibraryBookId");
 
                     b.HasIndex("UserId");
 
@@ -194,6 +242,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<bool>("IsDeleted")
@@ -236,6 +285,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
@@ -271,6 +321,30 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.UserLibrary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("LibraryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LibraryId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserLibraries");
                 });
 
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.UserMembership", b =>
@@ -347,11 +421,30 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                     b.Navigation("Fine");
                 });
 
-            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Loan", b =>
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.LibraryBook", b =>
                 {
                     b.HasOne("LibraryManagementAPI.Domain.Entities.Book", "Book")
-                        .WithMany("Loans")
+                        .WithMany("LibraryBooks")
                         .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementAPI.Domain.Entities.Library", "Library")
+                        .WithMany("LibraryBooks")
+                        .HasForeignKey("LibraryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Book");
+
+                    b.Navigation("Library");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Loan", b =>
+                {
+                    b.HasOne("LibraryManagementAPI.Domain.Entities.LibraryBook", "LibraryBook")
+                        .WithMany("Loans")
+                        .HasForeignKey("LibraryBookId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -361,7 +454,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Book");
+                    b.Navigation("LibraryBook");
 
                     b.Navigation("User");
                 });
@@ -375,6 +468,25 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("UserMembership");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.UserLibrary", b =>
+                {
+                    b.HasOne("LibraryManagementAPI.Domain.Entities.Library", "Library")
+                        .WithMany("UserLibraries")
+                        .HasForeignKey("LibraryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LibraryManagementAPI.Domain.Entities.User", "User")
+                        .WithMany("UserLibraries")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Library");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.UserMembership", b =>
@@ -403,7 +515,7 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
 
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Book", b =>
                 {
-                    b.Navigation("Loans");
+                    b.Navigation("LibraryBooks");
                 });
 
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Category", b =>
@@ -414,6 +526,18 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Fine", b =>
                 {
                     b.Navigation("FinePayments");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Library", b =>
+                {
+                    b.Navigation("LibraryBooks");
+
+                    b.Navigation("UserLibraries");
+                });
+
+            modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.LibraryBook", b =>
+                {
+                    b.Navigation("Loans");
                 });
 
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.Loan", b =>
@@ -429,6 +553,8 @@ namespace LibraryManagementAPI.Infrastructure.Migrations
             modelBuilder.Entity("LibraryManagementAPI.Domain.Entities.User", b =>
                 {
                     b.Navigation("Loans");
+
+                    b.Navigation("UserLibraries");
 
                     b.Navigation("UserMemberships");
                 });

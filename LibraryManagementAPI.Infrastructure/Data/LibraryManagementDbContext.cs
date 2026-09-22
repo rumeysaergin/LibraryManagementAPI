@@ -31,9 +31,31 @@ namespace LibraryManagementAPI.Infrastructure.Data
 
         public DbSet<FinePayment> FinePayments { get; set; }
 
+        public DbSet<Library> Libraries { get; set; }
+
+        public DbSet<LibraryBook> LibraryBooks { get; set; }
+
+        public DbSet<UserLibrary> UserLibraries { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<MembershipPlan>()
+.Property(x => x.Price)
+.HasPrecision(18, 2);
+
+            modelBuilder.Entity<MembershipPayment>()
+                .Property(x => x.Amount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<Fine>()
+                .Property(x => x.Amount)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<FinePayment>()
+                .Property(x => x.Amount)
+                .HasPrecision(18, 2);
 
             modelBuilder.Entity<User>()
                 .HasMany(x => x.UserMemberships)
@@ -65,10 +87,10 @@ namespace LibraryManagementAPI.Infrastructure.Data
                 .WithOne(x => x.User)
                 .HasForeignKey(x => x.UserId);
 
-            modelBuilder.Entity<Book>()
+            modelBuilder.Entity<LibraryBook>()
                 .HasMany(x => x.Loans)
-                .WithOne(x => x.Book)
-                .HasForeignKey(x => x.BookId);
+                .WithOne(x => x.LibraryBook)
+                .HasForeignKey(x => x.LibraryBookId);
 
             modelBuilder.Entity<Loan>()
                 .HasMany(x => x.Fines)
@@ -79,6 +101,27 @@ namespace LibraryManagementAPI.Infrastructure.Data
                 .HasMany(x => x.FinePayments)
                 .WithOne(x => x.Fine)
                 .HasForeignKey(x => x.FineId);
+
+            modelBuilder.Entity<Library>()
+                .HasMany(x => x.LibraryBooks)
+                .WithOne(x => x.Library)
+                .HasForeignKey(x => x.LibraryId);
+
+            modelBuilder.Entity<Book>()
+                .HasMany(x => x.LibraryBooks)
+                .WithOne(x => x.Book)
+                .HasForeignKey(x => x.BookId);
+
+            modelBuilder.Entity<User>()
+    .HasMany(x => x.UserLibraries)
+    .WithOne(x => x.User)
+    .HasForeignKey(x => x.UserId);
+
+            modelBuilder.Entity<Library>()
+                .HasMany(x => x.UserLibraries)
+                .WithOne(x => x.Library)
+                .HasForeignKey(x => x.LibraryId);
+
         }
     }
 }

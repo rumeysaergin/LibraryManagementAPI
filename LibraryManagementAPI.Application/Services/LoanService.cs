@@ -7,13 +7,16 @@ namespace LibraryManagementAPI.Application.Services
     public class LoanService : ILoanService
     {
         private readonly ILoanRepository _loanRepository;
+        private readonly ILibraryBookRepository _libraryBookRepository;
         private readonly IFineService _fineService;
 
         public LoanService(
             ILoanRepository loanRepository,
+            ILibraryBookRepository libraryBookRepository,
             IFineService fineService)
         {
             _loanRepository = loanRepository;
+            _libraryBookRepository = libraryBookRepository;
             _fineService = fineService;
         }
 
@@ -24,7 +27,7 @@ namespace LibraryManagementAPI.Application.Services
                 {
                     Id = x.Id,
                     UserId = x.UserId,
-                    BookId = x.BookId,
+                    LibraryBookId = x.LibraryBookId,
                     BorrowDate = x.BorrowDate,
                     DueDate = x.DueDate,
                     ReturnDate = x.ReturnDate,
@@ -44,7 +47,7 @@ namespace LibraryManagementAPI.Application.Services
             {
                 Id = loan.Id,
                 UserId = loan.UserId,
-                BookId = loan.BookId,
+                LibraryBookId = loan.LibraryBookId,
                 BorrowDate = loan.BorrowDate,
                 DueDate = loan.DueDate,
                 ReturnDate = loan.ReturnDate,
@@ -59,7 +62,7 @@ namespace LibraryManagementAPI.Application.Services
                 {
                     Id = x.Id,
                     UserId = x.UserId,
-                    BookId = x.BookId,
+                    LibraryBookId = x.LibraryBookId,
                     BorrowDate = x.BorrowDate,
                     DueDate = x.DueDate,
                     ReturnDate = x.ReturnDate,
@@ -68,14 +71,14 @@ namespace LibraryManagementAPI.Application.Services
                 .ToList();
         }
 
-        public List<LoanResponseDto> GetByBookId(Guid bookId)
+        public List<LoanResponseDto> GetByLibraryBookId(Guid libraryBookId)
         {
-            return _loanRepository.GetByBookId(bookId)
+            return _loanRepository.GetByLibraryBookId(libraryBookId)
                 .Select(x => new LoanResponseDto
                 {
                     Id = x.Id,
                     UserId = x.UserId,
-                    BookId = x.BookId,
+                    LibraryBookId = x.LibraryBookId,
                     BorrowDate = x.BorrowDate,
                     DueDate = x.DueDate,
                     ReturnDate = x.ReturnDate,
@@ -86,18 +89,31 @@ namespace LibraryManagementAPI.Application.Services
 
         public void Add(LoanCreateDto dto)
         {
+            var libraryBook = _libraryBookRepository.GetById(dto.LibraryBookId);
+
+            if (libraryBook == null)
+                throw new KeyNotFoundException("Library book record not found.");
+
+            if (libraryBook.Quantity <= 0)
+                throw new InvalidOperationException(
+                    "Book is out of stock in this library.");
+
             var loan = new Loan
             {
                 Id = Guid.NewGuid(),
                 UserId = dto.UserId,
-                BookId = dto.BookId,
+                LibraryBookId = dto.LibraryBookId,
                 BorrowDate = dto.BorrowDate,
                 DueDate = dto.DueDate,
-                Status = dto.Status,
+                ReturnDate = null,
+                Status = "Borrowed",
                 IsDeleted = false
             };
 
+            libraryBook.Quantity--;
+
             _loanRepository.Add(loan);
+            _libraryBookRepository.Update(libraryBook);
         }
 
         public void Update(Guid id, LoanUpdateDto dto)
@@ -107,16 +123,33 @@ namespace LibraryManagementAPI.Application.Services
             if (loan == null)
                 throw new KeyNotFoundException("Loan not found.");
 
-            loan.DueDate = dto.DueDate;
+            var isFirstReturn =
+                !loan.ReturnDate.HasValue &&
+                dto.ReturnDate.HasValue;
+
             loan.ReturnDate = dto.ReturnDate;
+            loan.DueDate = dto.DueDate;
             loan.Status = dto.Status;
 
-            if (dto.ReturnDate.HasValue && dto.ReturnDate.Value > dto.DueDate)
+            if (isFirstReturn)
             {
-                var lateDays = (dto.ReturnDate.Value.Date - dto.DueDate.Date).Days;
-                var fineAmount = lateDays * 10;
+                var libraryBook =
+                    _libraryBookRepository.GetById(loan.LibraryBookId);
 
-                _fineService.CreateFineForLoan(loan.Id, fineAmount);
+                if (libraryBook == null)
+                    throw new KeyNotFoundException(
+                        "Library book record not found.");
+
+                libraryBook.Quantity++;
+
+                _libraryBookRepository.Update(libraryBook);
+
+                if (loan.ReturnDate.Value.Date > loan.DueDate.Date)
+                {
+                    _loanRepository.Update(loan);
+                    _fineService.CreateFineForLoan(loan.Id);
+                    return;
+                }
             }
 
             _loanRepository.Update(loan);

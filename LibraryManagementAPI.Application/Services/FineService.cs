@@ -7,10 +7,14 @@ namespace LibraryManagementAPI.Application.Services
     public class FineService : IFineService
     {
         private readonly IFineRepository _fineRepository;
+        private readonly ILoanRepository _loanRepository;
 
-        public FineService(IFineRepository fineRepository)
+        public FineService(
+            IFineRepository fineRepository,
+            ILoanRepository loanRepository)
         {
             _fineRepository = fineRepository;
+            _loanRepository = loanRepository;
         }
 
         public List<FineResponseDto> GetAll()
@@ -60,26 +64,34 @@ namespace LibraryManagementAPI.Application.Services
 
         public void Add(FineCreateDto dto)
         {
-            var fine = new Fine
-            {
-                Id = Guid.NewGuid(),
-                LoanId = dto.LoanId,
-                Amount = dto.Amount,
-                FineDate = dto.FineDate,
-                IsPaid = dto.IsPaid,
-                IsDeleted = false
-            };
-
-            _fineRepository.Add(fine);
+            CreateFineForLoan(dto.LoanId);
         }
 
-        public void CreateFineForLoan(Guid loanId, decimal amount)
+        public void CreateFineForLoan(Guid loanId)
         {
+            var loan = _loanRepository.GetById(loanId);
+
+            if (loan == null)
+                throw new KeyNotFoundException("Loan not found.");
+
+            if (!loan.ReturnDate.HasValue)
+                throw new InvalidOperationException(
+                    "Fine can only be created after the book is returned.");
+
+            if (loan.ReturnDate.Value <= loan.DueDate)
+                throw new InvalidOperationException(
+                    "No fine is required because the book was returned on time.");
+
+            var lateDays =
+                (loan.ReturnDate.Value.Date - loan.DueDate.Date).Days;
+
+            var fineAmount = lateDays * 10;
+
             var fine = new Fine
             {
                 Id = Guid.NewGuid(),
                 LoanId = loanId,
-                Amount = amount,
+                Amount = fineAmount,
                 FineDate = DateTime.Now,
                 IsPaid = false,
                 IsDeleted = false

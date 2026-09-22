@@ -33,10 +33,12 @@ namespace LibraryManagementAPI.Infrastructure.Repositories
                 .ToList();
         }
 
-        public List<Loan> GetByBookId(Guid bookId)
+        public List<Loan> GetByLibraryBookId(Guid libraryBookId)
         {
             return _context.Loans
-                .Where(x => x.BookId == bookId && !x.IsDeleted)
+                .Where(x =>
+                    x.LibraryBookId == libraryBookId &&
+                    !x.IsDeleted)
                 .ToList();
         }
 

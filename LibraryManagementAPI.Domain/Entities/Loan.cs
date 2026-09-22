@@ -6,7 +6,7 @@
 
         public Guid UserId { get; set; }
 
-        public Guid BookId { get; set; }
+        public Guid LibraryBookId { get; set; }
 
         public DateTime BorrowDate { get; set; }
 
@@ -20,7 +20,7 @@
 
         public User User { get; set; } = null!;
 
-        public Book Book { get; set; } = null!;
+        public LibraryBook LibraryBook { get; set; } = null!;
 
         public ICollection<Fine> Fines { get; set; }
             = new List<Fine>();

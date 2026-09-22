@@ -7,7 +7,7 @@ namespace LibraryManagementAPI.Application.Repositories
         List<Loan> GetAll();
         Loan? GetById(Guid id);
         List<Loan> GetByUserId(Guid userId);
-        List<Loan> GetByBookId(Guid bookId);
+        List<Loan> GetByLibraryBookId(Guid libraryBookId);
 
         void Add(Loan loan);
         void Update(Loan loan);

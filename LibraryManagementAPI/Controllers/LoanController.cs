@@ -38,10 +38,10 @@ namespace LibraryManagementAPI.Controllers
             return Ok(_loanService.GetByUserId(userId));
         }
 
-        [HttpGet("book/{bookId}")]
-        public IActionResult GetByBookId(Guid bookId)
+        [HttpGet("library-book/{libraryBookId}")]
+        public IActionResult GetByLibraryBookId(Guid libraryBookId)
         {
-            return Ok(_loanService.GetByBookId(bookId));
+            return Ok(_loanService.GetByLibraryBookId(libraryBookId));
         }
 
         [HttpPost]

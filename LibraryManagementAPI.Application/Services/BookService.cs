@@ -21,7 +21,6 @@ namespace LibraryManagementAPI.Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     ISBN = x.ISBN,
-                    StockQuantity = x.StockQuantity,
                     AuthorId = x.AuthorId,
                     CategoryId = x.CategoryId
                 })
@@ -40,7 +39,6 @@ namespace LibraryManagementAPI.Application.Services
                 Id = book.Id,
                 Title = book.Title,
                 ISBN = book.ISBN,
-                StockQuantity = book.StockQuantity,
                 AuthorId = book.AuthorId,
                 CategoryId = book.CategoryId
             };
@@ -54,7 +52,6 @@ namespace LibraryManagementAPI.Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     ISBN = x.ISBN,
-                    StockQuantity = x.StockQuantity,
                     AuthorId = x.AuthorId,
                     CategoryId = x.CategoryId
                 })
@@ -69,7 +66,6 @@ namespace LibraryManagementAPI.Application.Services
                     Id = x.Id,
                     Title = x.Title,
                     ISBN = x.ISBN,
-                    StockQuantity = x.StockQuantity,
                     AuthorId = x.AuthorId,
                     CategoryId = x.CategoryId
                 })
@@ -83,7 +79,6 @@ namespace LibraryManagementAPI.Application.Services
                 Id = Guid.NewGuid(),
                 Title = dto.Title,
                 ISBN = dto.ISBN,
-                StockQuantity = dto.StockQuantity,
                 AuthorId = dto.AuthorId,
                 CategoryId = dto.CategoryId,
                 IsDeleted = false
@@ -101,7 +96,6 @@ namespace LibraryManagementAPI.Application.Services
 
             book.Title = dto.Title;
             book.ISBN = dto.ISBN;
-            book.StockQuantity = dto.StockQuantity;
             book.AuthorId = dto.AuthorId;
             book.CategoryId = dto.CategoryId;
 

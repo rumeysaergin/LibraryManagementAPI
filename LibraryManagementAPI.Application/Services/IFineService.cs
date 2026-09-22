@@ -9,7 +9,7 @@ namespace LibraryManagementAPI.Application.Services
         List<FineResponseDto> GetByLoanId(Guid loanId);
 
         void Add(FineCreateDto dto);
-        void CreateFineForLoan(Guid loanId, decimal amount);
+        void CreateFineForLoan(Guid loanId);
         void Update(Guid id, FineUpdateDto dto);
         void Delete(Guid id);
     }

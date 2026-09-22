@@ -28,6 +28,9 @@ builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped<ILoanRepository, LoanRepository>();
 builder.Services.AddScoped<IFineRepository, FineRepository>();
 builder.Services.AddScoped<IFinePaymentRepository, FinePaymentRepository>();
+builder.Services.AddScoped<ILibraryRepository, LibraryRepository>();
+builder.Services.AddScoped<ILibraryBookRepository, LibraryBookRepository>();
+builder.Services.AddScoped<IUserLibraryRepository, UserLibraryRepository>();
 
 // Service registrations
 builder.Services.AddScoped<IUserService, UserService>();
@@ -40,6 +43,9 @@ builder.Services.AddScoped<IBookService, BookService>();
 builder.Services.AddScoped<ILoanService, LoanService>();
 builder.Services.AddScoped<IFineService, FineService>();
 builder.Services.AddScoped<IFinePaymentService, FinePaymentService>();
+builder.Services.AddScoped<ILibraryService, LibraryService>();
+builder.Services.AddScoped<ILibraryBookService, LibraryBookService>();
+builder.Services.AddScoped<IUserLibraryService, UserLibraryService>();
 
 // JWT and Auth Service registrations
 builder.Services.AddScoped<IJwtService, JwtService>();
