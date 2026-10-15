@@ -1,4 +1,5 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -14,14 +15,26 @@ namespace LibraryManagementAPI.Application.Services
             _configuration = configuration;
         }
 
-        public string GenerateToken(Guid userId, string email)
+        public string GenerateToken(
+            Guid userId,
+            string email,
+            string role)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
 
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                new Claim(ClaimTypes.Email, email)
+                new Claim(
+                    ClaimTypes.NameIdentifier,
+                    userId.ToString()),
+
+                new Claim(
+                    ClaimTypes.Email,
+                    email),
+
+                new Claim(
+                    ClaimTypes.Role,
+                    role)
             };
 
             var key = new SymmetricSecurityKey(

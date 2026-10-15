@@ -7,10 +7,14 @@ namespace LibraryManagementAPI.Application.Services
     public class FinePaymentService : IFinePaymentService
     {
         private readonly IFinePaymentRepository _finePaymentRepository;
+        private readonly IFineRepository _fineRepository;
 
-        public FinePaymentService(IFinePaymentRepository finePaymentRepository)
+        public FinePaymentService(
+            IFinePaymentRepository finePaymentRepository,
+            IFineRepository fineRepository)
         {
             _finePaymentRepository = finePaymentRepository;
+            _fineRepository = fineRepository;
         }
 
         public List<FinePaymentResponseDto> GetAll()
@@ -60,17 +64,34 @@ namespace LibraryManagementAPI.Application.Services
 
         public void Add(FinePaymentCreateDto dto)
         {
+            var fine = _fineRepository.GetById(dto.FineId);
+
+            if (fine == null)
+                throw new KeyNotFoundException("Fine not found.");
+
+            if (fine.IsPaid)
+                throw new InvalidOperationException(
+                    "This fine has already been paid.");
+
+            if (dto.Amount != fine.Amount)
+                throw new InvalidOperationException(
+                    "Payment amount does not match the fine amount.");
+
             var payment = new FinePayment
             {
                 Id = Guid.NewGuid(),
                 FineId = dto.FineId,
-                Amount = dto.Amount,
+                Amount = fine.Amount,
                 PaymentDate = dto.PaymentDate,
                 PaymentMethod = dto.PaymentMethod,
                 IsDeleted = false
             };
 
             _finePaymentRepository.Add(payment);
+
+            fine.IsPaid = true;
+
+            _fineRepository.Update(fine);
         }
 
         public void Update(Guid id, FinePaymentUpdateDto dto)

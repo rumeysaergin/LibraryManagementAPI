@@ -84,6 +84,7 @@ namespace LibraryManagementAPI.Tests.Services
             Assert.Equal(fine.Id, result.Id);
             Assert.Equal(fine.LoanId, result.LoanId);
             Assert.Equal(fine.Amount, result.Amount);
+            Assert.Equal(fine.IsPaid, result.IsPaid);
         }
 
         [Fact]
@@ -113,13 +114,19 @@ namespace LibraryManagementAPI.Tests.Services
 
             _fineRepositoryMock
                 .Setup(x => x.GetByLoanId(loanId))
-                .Returns(new List<Fine> { fine1, fine2 });
+                .Returns(new List<Fine>
+                {
+                    fine1,
+                    fine2
+                });
 
             var result = _service.GetByLoanId(loanId);
 
             Assert.NotNull(result);
             Assert.Equal(2, result.Count);
-            Assert.All(result, x => Assert.Equal(loanId, x.LoanId));
+            Assert.All(
+                result,
+                x => Assert.Equal(loanId, x.LoanId));
         }
 
         [Fact]
@@ -135,6 +142,10 @@ namespace LibraryManagementAPI.Tests.Services
             _loanRepositoryMock
                 .Setup(x => x.GetById(loan.Id))
                 .Returns(loan);
+
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>());
 
             _service.Add(dto);
 
@@ -156,8 +167,14 @@ namespace LibraryManagementAPI.Tests.Services
                 .Setup(x => x.GetById(loan.Id))
                 .Returns(loan);
 
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>());
+
             _service.CreateFineForLoan(loan.Id);
 
+            // 20 Eylül -> 25 Eylül = 5 gün
+            // 5 * 10 TL = 50 TL
             _fineRepositoryMock.Verify(
                 x => x.Add(It.Is<Fine>(fine =>
                     fine.LoanId == loan.Id &&
@@ -185,14 +202,46 @@ namespace LibraryManagementAPI.Tests.Services
         }
 
         [Fact]
-        public void CreateFineForLoan_ShouldThrowException_WhenLoanHasNotBeenReturned()
+        public void CreateFineForLoan_ShouldThrowException_WhenFineAlreadyExists()
         {
             var loan = CreateLoan();
+            var existingFine = CreateFine();
+
+            existingFine.LoanId = loan.Id;
+
+            _loanRepositoryMock
+                .Setup(x => x.GetById(loan.Id))
+                .Returns(loan);
+
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>
+                {
+                    existingFine
+                });
+
+            Assert.Throws<InvalidOperationException>(
+                () => _service.CreateFineForLoan(loan.Id));
+
+            _fineRepositoryMock.Verify(
+                x => x.Add(It.IsAny<Fine>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public void CreateFineForLoan_ShouldThrowException_WhenBookHasNotBeenReturned()
+        {
+            var loan = CreateLoan();
+
             loan.ReturnDate = null;
 
             _loanRepositoryMock
                 .Setup(x => x.GetById(loan.Id))
                 .Returns(loan);
+
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>());
 
             Assert.Throws<InvalidOperationException>(
                 () => _service.CreateFineForLoan(loan.Id));
@@ -206,11 +255,16 @@ namespace LibraryManagementAPI.Tests.Services
         public void CreateFineForLoan_ShouldThrowException_WhenBookReturnedOnTime()
         {
             var loan = CreateLoan();
+
             loan.ReturnDate = loan.DueDate;
 
             _loanRepositoryMock
                 .Setup(x => x.GetById(loan.Id))
                 .Returns(loan);
+
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>());
 
             Assert.Throws<InvalidOperationException>(
                 () => _service.CreateFineForLoan(loan.Id));
@@ -232,13 +286,20 @@ namespace LibraryManagementAPI.Tests.Services
                 .Setup(x => x.GetById(loan.Id))
                 .Returns(loan);
 
+            _fineRepositoryMock
+                .Setup(x => x.GetByLoanId(loan.Id))
+                .Returns(new List<Fine>());
+
             _service.CreateFineForLoan(loan.Id);
 
+            // 20 Eylül -> 23 Eylül = 3 gün
+            // 3 * 10 TL = 30 TL
             _fineRepositoryMock.Verify(
                 x => x.Add(It.Is<Fine>(fine =>
                     fine.LoanId == loan.Id &&
                     fine.Amount == 30 &&
-                    fine.IsPaid == false)),
+                    fine.IsPaid == false &&
+                    fine.IsDeleted == false)),
                 Times.Once);
         }
 

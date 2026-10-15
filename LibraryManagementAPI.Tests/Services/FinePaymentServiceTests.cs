@@ -9,12 +9,17 @@ namespace LibraryManagementAPI.Tests.Services
     public class FinePaymentServiceTests
     {
         private readonly Mock<IFinePaymentRepository> _repositoryMock;
+        private readonly Mock<IFineRepository> _fineRepositoryMock;
         private readonly FinePaymentService _service;
 
         public FinePaymentServiceTests()
         {
             _repositoryMock = new Mock<IFinePaymentRepository>();
-            _service = new FinePaymentService(_repositoryMock.Object);
+            _fineRepositoryMock = new Mock<IFineRepository>();
+
+            _service = new FinePaymentService(
+                _repositoryMock.Object,
+                _fineRepositoryMock.Object);
         }
 
         private FinePayment CreateFinePayment()
@@ -26,6 +31,19 @@ namespace LibraryManagementAPI.Tests.Services
                 Amount = 40,
                 PaymentDate = new DateTime(2026, 9, 24),
                 PaymentMethod = "CreditCard",
+                IsDeleted = false
+            };
+        }
+
+        private Fine CreateFine()
+        {
+            return new Fine
+            {
+                Id = Guid.NewGuid(),
+                LoanId = Guid.NewGuid(),
+                Amount = 40,
+                FineDate = new DateTime(2026, 9, 24),
+                IsPaid = false,
                 IsDeleted = false
             };
         }
@@ -105,25 +123,118 @@ namespace LibraryManagementAPI.Tests.Services
 
             Assert.NotNull(result);
             Assert.Equal(2, result.Count);
-            Assert.All(result, x => Assert.Equal(fineId, x.FineId));
+            Assert.All(
+                result,
+                x => Assert.Equal(fineId, x.FineId));
         }
 
         [Fact]
-        public void Add_ShouldCallRepositoryAdd()
+        public void Add_ShouldCreatePaymentAndMarkFineAsPaid()
         {
+            var fine = CreateFine();
+
             var dto = new FinePaymentCreateDto
             {
-                FineId = Guid.NewGuid(),
+                FineId = fine.Id,
                 Amount = 40,
                 PaymentDate = new DateTime(2026, 9, 24),
                 PaymentMethod = "CreditCard"
             };
 
+            _fineRepositoryMock
+                .Setup(x => x.GetById(fine.Id))
+                .Returns(fine);
+
             _service.Add(dto);
 
             _repositoryMock.Verify(
-                x => x.Add(It.IsAny<FinePayment>()),
+                x => x.Add(It.Is<FinePayment>(payment =>
+                    payment.FineId == fine.Id &&
+                    payment.Amount == fine.Amount &&
+                    payment.PaymentMethod == "CreditCard")),
                 Times.Once);
+
+            Assert.True(fine.IsPaid);
+
+            _fineRepositoryMock.Verify(
+                x => x.Update(fine),
+                Times.Once);
+        }
+
+        [Fact]
+        public void Add_ShouldThrowException_WhenFineDoesNotExist()
+        {
+            var fineId = Guid.NewGuid();
+
+            var dto = new FinePaymentCreateDto
+            {
+                FineId = fineId,
+                Amount = 40,
+                PaymentDate = new DateTime(2026, 9, 24),
+                PaymentMethod = "CreditCard"
+            };
+
+            _fineRepositoryMock
+                .Setup(x => x.GetById(fineId))
+                .Returns((Fine?)null);
+
+            Assert.Throws<KeyNotFoundException>(
+                () => _service.Add(dto));
+
+            _repositoryMock.Verify(
+                x => x.Add(It.IsAny<FinePayment>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public void Add_ShouldThrowException_WhenFineIsAlreadyPaid()
+        {
+            var fine = CreateFine();
+            fine.IsPaid = true;
+
+            var dto = new FinePaymentCreateDto
+            {
+                FineId = fine.Id,
+                Amount = 40,
+                PaymentDate = new DateTime(2026, 9, 24),
+                PaymentMethod = "CreditCard"
+            };
+
+            _fineRepositoryMock
+                .Setup(x => x.GetById(fine.Id))
+                .Returns(fine);
+
+            Assert.Throws<InvalidOperationException>(
+                () => _service.Add(dto));
+
+            _repositoryMock.Verify(
+                x => x.Add(It.IsAny<FinePayment>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public void Add_ShouldThrowException_WhenAmountDoesNotMatchFine()
+        {
+            var fine = CreateFine();
+
+            var dto = new FinePaymentCreateDto
+            {
+                FineId = fine.Id,
+                Amount = 50,
+                PaymentDate = new DateTime(2026, 9, 24),
+                PaymentMethod = "CreditCard"
+            };
+
+            _fineRepositoryMock
+                .Setup(x => x.GetById(fine.Id))
+                .Returns(fine);
+
+            Assert.Throws<InvalidOperationException>(
+                () => _service.Add(dto));
+
+            _repositoryMock.Verify(
+                x => x.Add(It.IsAny<FinePayment>()),
+                Times.Never);
         }
 
         [Fact]
@@ -145,7 +256,9 @@ namespace LibraryManagementAPI.Tests.Services
             _service.Update(payment.Id, dto);
 
             Assert.Equal(50, payment.Amount);
-            Assert.Equal(new DateTime(2026, 9, 25), payment.PaymentDate);
+            Assert.Equal(
+                new DateTime(2026, 9, 25),
+                payment.PaymentDate);
             Assert.Equal("Cash", payment.PaymentMethod);
 
             _repositoryMock.Verify(

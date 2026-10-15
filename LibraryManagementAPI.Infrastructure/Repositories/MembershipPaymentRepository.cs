@@ -4,11 +4,13 @@ using LibraryManagementAPI.Infrastructure.Data;
 
 namespace LibraryManagementAPI.Infrastructure.Repositories
 {
-    public class MembershipPaymentRepository : IMembershipPaymentRepository
+    public class MembershipPaymentRepository
+        : IMembershipPaymentRepository
     {
         private readonly LibraryManagementDbContext _context;
 
-        public MembershipPaymentRepository(LibraryManagementDbContext context)
+        public MembershipPaymentRepository(
+            LibraryManagementDbContext context)
         {
             _context = context;
         }
@@ -23,13 +25,17 @@ namespace LibraryManagementAPI.Infrastructure.Repositories
         public MembershipPayment? GetById(Guid id)
         {
             return _context.MembershipPayments
-                .FirstOrDefault(x => x.Id == id && !x.IsDeleted);
+                .FirstOrDefault(x =>
+                    x.Id == id && !x.IsDeleted);
         }
 
-        public List<MembershipPayment> GetByUserMembershipId(Guid userMembershipId)
+        public List<MembershipPayment> GetByUserMembershipId(
+            Guid userMembershipId)
         {
             return _context.MembershipPayments
-                .Where(x => x.UserMembershipId == userMembershipId && !x.IsDeleted)
+                .Where(x =>
+                    x.UserMembershipId == userMembershipId &&
+                    !x.IsDeleted)
                 .ToList();
         }
 
@@ -48,6 +54,7 @@ namespace LibraryManagementAPI.Infrastructure.Repositories
         public void Delete(MembershipPayment membershipPayment)
         {
             membershipPayment.IsDeleted = true;
+
             _context.MembershipPayments.Update(membershipPayment);
             _context.SaveChanges();
         }

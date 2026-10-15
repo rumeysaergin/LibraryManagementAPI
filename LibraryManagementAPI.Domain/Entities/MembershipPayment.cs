@@ -12,6 +12,9 @@
 
         public string PaymentMethod { get; set; } = string.Empty;
 
+        // Ödeme doğrulanana kadar false kalır.
+        public bool IsPaid { get; set; } = false;
+
         public bool IsDeleted { get; set; }
 
         public UserMembership UserMembership { get; set; } = null!;

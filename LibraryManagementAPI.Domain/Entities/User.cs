@@ -1,4 +1,5 @@
-﻿namespace LibraryManagementAPI.Domain.Entities
+﻿
+namespace LibraryManagementAPI.Domain.Entities
 {
     public class User
     {
@@ -12,6 +13,8 @@
 
         public string Password { get; set; } = string.Empty;
 
+        public string Role { get; set; } = "User";
+
         public bool IsDeleted { get; set; }
 
         public ICollection<UserMembership> UserMemberships { get; set; }
@@ -21,6 +24,6 @@
             = new List<Loan>();
 
         public ICollection<UserLibrary> UserLibraries { get; set; }
-    = new List<UserLibrary>();
+            = new List<UserLibrary>();
     }
 }

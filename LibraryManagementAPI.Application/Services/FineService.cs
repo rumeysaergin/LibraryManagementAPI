@@ -74,6 +74,14 @@ namespace LibraryManagementAPI.Application.Services
             if (loan == null)
                 throw new KeyNotFoundException("Loan not found.");
 
+            var existingFine = _fineRepository
+                .GetByLoanId(loanId)
+                .FirstOrDefault();
+
+            if (existingFine != null)
+                throw new InvalidOperationException(
+                    "A fine has already been created for this loan.");
+
             if (!loan.ReturnDate.HasValue)
                 throw new InvalidOperationException(
                     "Fine can only be created after the book is returned.");

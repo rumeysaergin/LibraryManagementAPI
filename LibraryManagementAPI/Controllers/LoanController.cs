@@ -1,4 +1,5 @@
-﻿using LibraryManagementAPI.Application.DTOs.Loan;
+﻿
+using LibraryManagementAPI.Application.DTOs.Loan;
 using LibraryManagementAPI.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -47,32 +48,44 @@ namespace LibraryManagementAPI.Controllers
         [HttpPost]
         public IActionResult Create(LoanCreateDto dto)
         {
-            _loanService.Add(dto);
-
-            return Ok(new
-            {
-                message = "Loan created successfully."
-            });
-        }
-
-        [HttpPut("{id}")]
-        public IActionResult Update(Guid id, LoanUpdateDto dto)
-        {
             try
             {
-                _loanService.Update(id, dto);
+                _loanService.Add(dto);
 
                 return Ok(new
                 {
-                    message = "Loan updated successfully."
+                    message = "Loan created successfully."
                 });
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("{id}/return")]
+        public IActionResult ReturnLoan(Guid id)
+        {
+            try
+            {
+                _loanService.ReturnLoan(id);
+
+                return Ok(new
                 {
-                    message = ex.Message
+                    message = "Book returned successfully."
                 });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -90,10 +103,11 @@ namespace LibraryManagementAPI.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
     }

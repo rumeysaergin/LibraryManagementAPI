@@ -42,12 +42,29 @@ namespace LibraryManagementAPI.Controllers
         [HttpPost]
         public IActionResult Create(FinePaymentCreateDto dto)
         {
-            _finePaymentService.Add(dto);
-
-            return Ok(new
+            try
             {
-                message = "Fine payment created successfully."
-            });
+                _finePaymentService.Add(dto);
+
+                return Ok(new
+                {
+                    message = "Fine payment created successfully."
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPut("{id}")]

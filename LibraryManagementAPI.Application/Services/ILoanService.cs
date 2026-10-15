@@ -1,4 +1,5 @@
-﻿using LibraryManagementAPI.Application.DTOs.Loan;
+﻿
+using LibraryManagementAPI.Application.DTOs.Loan;
 
 namespace LibraryManagementAPI.Application.Services
 {
@@ -14,7 +15,7 @@ namespace LibraryManagementAPI.Application.Services
 
         void Add(LoanCreateDto dto);
 
-        void Update(Guid id, LoanUpdateDto dto);
+        void ReturnLoan(Guid id);
 
         void Delete(Guid id);
     }

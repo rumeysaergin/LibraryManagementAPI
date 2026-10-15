@@ -1,4 +1,5 @@
-﻿using LibraryManagementAPI.Application.DTOs.Auth;
+﻿
+using LibraryManagementAPI.Application.DTOs.Auth;
 using LibraryManagementAPI.Application.Repositories;
 
 namespace LibraryManagementAPI.Application.Services
@@ -21,9 +22,16 @@ namespace LibraryManagementAPI.Application.Services
             var user = _userRepository.GetByEmail(dto.Email);
 
             if (user == null || user.Password != dto.Password)
-                throw new UnauthorizedAccessException("Invalid email or password.");
+            {
+                throw new UnauthorizedAccessException(
+                    "Invalid email or password.");
+            }
 
-            var token = _jwtService.GenerateToken(user.Id, user.Email);
+            var token = _jwtService.GenerateToken(
+                user.Id,
+                user.Email,
+                user.Role
+            );
 
             return new LoginResponseDto
             {
