@@ -1,5 +1,4 @@
-﻿
-using LibraryManagementAPI.Application.DTOs.MembershipPayment;
+﻿using LibraryManagementAPI.Application.DTOs.MembershipPayment;
 using LibraryManagementAPI.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +19,7 @@ namespace LibraryManagementAPI.Controllers
             _membershipPaymentService = membershipPaymentService;
         }
 
-        // Yalnızca admin bütün ödemeleri görebilir.
+        // Tüm ödeme kayıtlarını getirir. Sadece Admin erişebilir.
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public IActionResult GetAll()
@@ -28,7 +27,7 @@ namespace LibraryManagementAPI.Controllers
             return Ok(_membershipPaymentService.GetAll());
         }
 
-        // Yalnızca admin ödeme detayını ID ile görebilir.
+        // ID ile ödeme kaydını getirir. Sadece Admin erişebilir.
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin")]
         public IActionResult GetById(Guid id)
@@ -36,12 +35,15 @@ namespace LibraryManagementAPI.Controllers
             var payment = _membershipPaymentService.GetById(id);
 
             if (payment == null)
-                return NotFound();
+                return NotFound(new
+                {
+                    message = "Ödeme kaydı bulunamadı."
+                });
 
             return Ok(payment);
         }
 
-        // Kullanıcı yalnızca kendi ödeme geçmişini görebilir.
+        // Giriş yapan kullanıcının kendi ödeme kayıtlarını getirir.
         [HttpGet("my-payments")]
         public IActionResult GetMyPayments()
         {
@@ -49,26 +51,29 @@ namespace LibraryManagementAPI.Controllers
                 ClaimTypes.NameIdentifier);
 
             if (!Guid.TryParse(userIdValue, out var userId))
+            {
                 return Unauthorized(new
                 {
                     message = "Kullanıcı kimliği token içerisinde bulunamadı."
                 });
+            }
 
             return Ok(_membershipPaymentService.GetByUserId(userId));
         }
 
-        // Bu yönetim sorgusu yalnızca admin içindir.
+        // Belirli bir üyeliğe ait ödeme kayıtlarını getirir.
+        // Sadece Admin erişebilir.
         [HttpGet("membership/{userMembershipId}")]
         [Authorize(Roles = "Admin")]
-        public IActionResult GetByUserMembershipId(Guid userMembershipId)
+        public IActionResult GetByUserMembershipId(
+            Guid userMembershipId)
         {
             return Ok(
-                _membershipPaymentService
-                    .GetByUserMembershipId(userMembershipId));
+                _membershipPaymentService.GetByUserMembershipId(
+                    userMembershipId));
         }
 
-        // Giriş yapan kullanıcı yalnızca kendisine ait üyelik için
-        // bekleyen ödeme kaydı oluşturabilir.
+        // Giriş yapan kullanıcı için yeni bir ödeme kaydı oluşturur.
         [HttpPost]
         public IActionResult Create(MembershipPaymentCreateDto dto)
         {
@@ -76,10 +81,12 @@ namespace LibraryManagementAPI.Controllers
                 ClaimTypes.NameIdentifier);
 
             if (!Guid.TryParse(userIdValue, out var userId))
+            {
                 return Unauthorized(new
                 {
                     message = "Kullanıcı kimliği token içerisinde bulunamadı."
                 });
+            }
 
             try
             {
@@ -90,17 +97,27 @@ namespace LibraryManagementAPI.Controllers
                     message = "Ödeme kaydı oluşturuldu. Yönetici onayı bekleniyor."
                 });
             }
-            catch (UnauthorizedAccessException ex)
+            catch (UnauthorizedAccessException)
             {
                 return Forbid();
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
         }
 
-        // Ödeme bilgilerini düzenlemek yalnızca admin içindir.
+        // Ödeme bilgilerini günceller. Sadece Admin erişebilir.
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public IActionResult Update(
@@ -118,19 +135,29 @@ namespace LibraryManagementAPI.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new
+                {
+                    message = ex.Message
+                });
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
         }
 
-        // Ödeme onayı yalnızca admin tarafından yapılabilir.
+        // Ödemeyi onaylar ve bağlı üyeliği aktif hâle getirir.
+        // Sadece Admin erişebilir.
         [HttpPut("{id}/mark-as-paid")]
         [Authorize(Roles = "Admin")]
         public IActionResult MarkAsPaid(Guid id)
@@ -146,11 +173,21 @@ namespace LibraryManagementAPI.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new
+                {
+                    message = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
         }
 
-        // Bekleyen bir ödeme kaydını silmek yalnızca admin içindir.
+        // Onaylanmamış ödeme kaydını siler. Sadece Admin erişebilir.
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public IActionResult Delete(Guid id)
@@ -166,11 +203,17 @@ namespace LibraryManagementAPI.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new
+                {
+                    message = ex.Message
+                });
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
             }
         }
     }

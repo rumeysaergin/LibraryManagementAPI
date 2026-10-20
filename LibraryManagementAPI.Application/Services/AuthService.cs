@@ -37,7 +37,8 @@ namespace LibraryManagementAPI.Application.Services
             {
                 Token = token,
                 UserId = user.Id,
-                Email = user.Email
+                Email = user.Email,
+                Role = user.Role
             };
         }
     }
