@@ -88,20 +88,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Authorization
-builder.Services.AddAuthorization(options =>
-{
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
-        .RequireAuthenticatedUser()
-        .Build();
-});
-
+builder.Services.AddAuthorization();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .WithOrigins("http://localhost:3001")
+            .WithOrigins("http://localhost:3000", "http://localhost:3001", "https://localhost:3000", "https://localhost:3001")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -133,12 +127,16 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// HTTP request pipeline
-if (app.Environment.IsDevelopment())
+// Swagger Her zaman ve kolay erişilebilir olsun
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "LibraryManagementAPI v1");
+    c.RoutePrefix = "swagger";
+});
+
+// Kök dizine (/) gidildiğinde otomatik olarak Swagger'a yönlendir
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.UseHttpsRedirection();
 

@@ -1,4 +1,5 @@
-﻿using LibraryManagementAPI.Application.DTOs.User;
+﻿
+using LibraryManagementAPI.Application.DTOs.User;
 using LibraryManagementAPI.Application.Repositories;
 using LibraryManagementAPI.Domain.Entities;
 
@@ -21,7 +22,8 @@ namespace LibraryManagementAPI.Application.Services
                     Id = x.Id,
                     FirstName = x.FirstName,
                     LastName = x.LastName,
-                    Email = x.Email
+                    Email = x.Email,
+                    Role = x.Role
                 })
                 .ToList();
         }
@@ -38,7 +40,8 @@ namespace LibraryManagementAPI.Application.Services
                 Id = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Email = user.Email
+                Email = user.Email,
+                Role = user.Role
             };
         }
 
@@ -54,7 +57,8 @@ namespace LibraryManagementAPI.Application.Services
                 Id = user.Id,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Email = user.Email
+                Email = user.Email,
+                Role = user.Role
             };
         }
 
@@ -67,6 +71,9 @@ namespace LibraryManagementAPI.Application.Services
                 LastName = dto.LastName,
                 Email = dto.Email,
                 Password = dto.Password,
+                Role = string.IsNullOrWhiteSpace(dto.Role)
+                    ? "User"
+                    : dto.Role,
                 IsDeleted = false
             };
 
@@ -83,6 +90,11 @@ namespace LibraryManagementAPI.Application.Services
             user.FirstName = dto.FirstName;
             user.LastName = dto.LastName;
             user.Email = dto.Email;
+
+            if (!string.IsNullOrWhiteSpace(dto.Role))
+            {
+                user.Role = dto.Role;
+            }
 
             _userRepository.Update(user);
         }

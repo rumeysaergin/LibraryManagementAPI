@@ -11,19 +11,22 @@ namespace LibraryManagementAPI.Tests.Services
     {
         private readonly Mock<IMembershipPaymentRepository> _repositoryMock;
         private readonly Mock<IUserMembershipRepository> _userMembershipRepositoryMock;
+        private readonly Mock<IMembershipPlanRepository> _membershipPlanRepositoryMock;
         private readonly MembershipPaymentService _service;
 
         public MembershipPaymentServiceTests()
         {
             _repositoryMock = new Mock<IMembershipPaymentRepository>();
             _userMembershipRepositoryMock = new Mock<IUserMembershipRepository>();
+            _membershipPlanRepositoryMock = new Mock<IMembershipPlanRepository>();
 
             _service = new MembershipPaymentService(
                 _repositoryMock.Object,
-                _userMembershipRepositoryMock.Object);
+                _userMembershipRepositoryMock.Object,
+                _membershipPlanRepositoryMock.Object);
         }
 
-        private MembershipPayment CreateMembershipPayment()
+        private static MembershipPayment CreateMembershipPayment()
         {
             return new MembershipPayment
             {
@@ -37,6 +40,19 @@ namespace LibraryManagementAPI.Tests.Services
             };
         }
 
+        private static MembershipPlan CreateMembershipPlan(Guid? id = null)
+        {
+            return new MembershipPlan
+            {
+                Id = id ?? Guid.NewGuid(),
+                Name = "Premium",
+                MaxBorrowLimit = 10,
+                Price = 100,
+                DurationInDays = 30,
+                IsDeleted = false
+            };
+        }
+
         [Fact]
         public void GetAll_ShouldReturnMembershipPayments()
         {
@@ -46,29 +62,25 @@ namespace LibraryManagementAPI.Tests.Services
                 CreateMembershipPayment()
             };
 
-            _repositoryMock
-                .Setup(x => x.GetAll())
-                .Returns(payments);
+            _repositoryMock.Setup(x => x.GetAll()).Returns(payments);
 
             var result = _service.GetAll();
 
-            Assert.NotNull(result);
             Assert.Equal(2, result.Count);
         }
 
         [Fact]
-        public void GetById_ShouldReturnMembershipPayment_WhenPaymentExists()
+        public void GetById_ShouldReturnPayment_WhenPaymentExists()
         {
             var payment = CreateMembershipPayment();
 
-            _repositoryMock
-                .Setup(x => x.GetById(payment.Id))
+            _repositoryMock.Setup(x => x.GetById(payment.Id))
                 .Returns(payment);
 
             var result = _service.GetById(payment.Id);
 
             Assert.NotNull(result);
-            Assert.Equal(payment.Id, result!.Id);
+            Assert.Equal(payment.Id, result.Id);
             Assert.Equal(payment.UserMembershipId, result.UserMembershipId);
             Assert.Equal(payment.Amount, result.Amount);
         }
@@ -78,40 +90,36 @@ namespace LibraryManagementAPI.Tests.Services
         {
             var id = Guid.NewGuid();
 
-            _repositoryMock
-                .Setup(x => x.GetById(id))
+            _repositoryMock.Setup(x => x.GetById(id))
                 .Returns((MembershipPayment?)null);
 
-            var result = _service.GetById(id);
-
-            Assert.Null(result);
+            Assert.Null(_service.GetById(id));
         }
 
         [Fact]
-        public void GetByUserMembershipId_ShouldReturnMembershipPayments()
+        public void GetByUserMembershipId_ShouldReturnPayments()
         {
-            var userMembershipId = Guid.NewGuid();
+            var membershipId = Guid.NewGuid();
 
             var payment1 = CreateMembershipPayment();
-            payment1.UserMembershipId = userMembershipId;
+            payment1.UserMembershipId = membershipId;
 
             var payment2 = CreateMembershipPayment();
-            payment2.UserMembershipId = userMembershipId;
+            payment2.UserMembershipId = membershipId;
 
             _repositoryMock
-                .Setup(x => x.GetByUserMembershipId(userMembershipId))
+                .Setup(x => x.GetByUserMembershipId(membershipId))
                 .Returns(new List<MembershipPayment> { payment1, payment2 });
 
-            var result = _service.GetByUserMembershipId(userMembershipId);
+            var result = _service.GetByUserMembershipId(membershipId);
 
             Assert.Equal(2, result.Count);
-            Assert.All(
-                result,
-                x => Assert.Equal(userMembershipId, x.UserMembershipId));
+            Assert.All(result, x =>
+                Assert.Equal(membershipId, x.UserMembershipId));
         }
 
         [Fact]
-        public void GetByUserId_ShouldReturnOnlyPaymentsForUsersMemberships()
+        public void GetByUserId_ShouldReturnPaymentsForUsersMemberships()
         {
             var userId = Guid.NewGuid();
             var membershipId1 = Guid.NewGuid();
@@ -119,13 +127,13 @@ namespace LibraryManagementAPI.Tests.Services
 
             var memberships = new List<UserMembership>
             {
-                new UserMembership
+                new()
                 {
                     Id = membershipId1,
                     UserId = userId,
                     IsDeleted = false
                 },
-                new UserMembership
+                new()
                 {
                     Id = membershipId2,
                     UserId = userId,
@@ -159,67 +167,61 @@ namespace LibraryManagementAPI.Tests.Services
         }
 
         [Fact]
-        public void Add_ShouldCallRepositoryAdd_WhenMembershipBelongsToUser()
+        public void Add_ShouldCreatePendingPaymentUsingPlanPrice()
         {
             var userId = Guid.NewGuid();
-            var membershipId = Guid.NewGuid();
-
-            var membership = new UserMembership
-            {
-                Id = membershipId,
-                UserId = userId,
-                IsDeleted = false
-            };
+            var plan = CreateMembershipPlan();
 
             var dto = new MembershipPaymentCreateDto
             {
-                UserMembershipId = membershipId,
-                Amount = 100,
-                PaymentDate = new DateTime(2026, 9, 1),
+                MembershipPlanId = plan.Id,
                 PaymentMethod = "CreditCard"
             };
 
-            _userMembershipRepositoryMock
-                .Setup(x => x.GetById(membershipId))
-                .Returns(membership);
+            _membershipPlanRepositoryMock
+                .Setup(x => x.GetById(plan.Id))
+                .Returns(plan);
 
             _service.Add(dto, userId);
 
+            _userMembershipRepositoryMock.Verify(
+                x => x.Add(It.Is<UserMembership>(m =>
+                    m.UserId == userId &&
+                    m.MembershipPlanId == plan.Id &&
+                    !m.IsActive &&
+                    !m.IsDeleted)),
+                Times.Once);
+
             _repositoryMock.Verify(
                 x => x.Add(It.Is<MembershipPayment>(p =>
-                    p.UserMembershipId == membershipId &&
-                    p.Amount == 100 &&
-                    p.IsPaid == false)),
+                    p.Amount == plan.Price &&
+                    p.PaymentMethod == "CreditCard" &&
+                    !p.IsPaid &&
+                    !p.IsDeleted)),
                 Times.Once);
         }
 
         [Fact]
-        public void Add_ShouldThrow_WhenMembershipBelongsToAnotherUser()
+        public void Add_ShouldThrow_WhenPlanDoesNotExist()
         {
-            var userId = Guid.NewGuid();
-            var anotherUserId = Guid.NewGuid();
-            var membershipId = Guid.NewGuid();
-
-            var membership = new UserMembership
-            {
-                Id = membershipId,
-                UserId = anotherUserId,
-                IsDeleted = false
-            };
+            var planId = Guid.NewGuid();
 
             var dto = new MembershipPaymentCreateDto
             {
-                UserMembershipId = membershipId,
-                Amount = 100,
+                MembershipPlanId = planId,
                 PaymentMethod = "CreditCard"
             };
 
-            _userMembershipRepositoryMock
-                .Setup(x => x.GetById(membershipId))
-                .Returns(membership);
+            _membershipPlanRepositoryMock
+                .Setup(x => x.GetById(planId))
+                .Returns((MembershipPlan?)null);
 
-            Assert.Throws<UnauthorizedAccessException>(
-                () => _service.Add(dto, userId));
+            Assert.Throws<KeyNotFoundException>(
+                () => _service.Add(dto, Guid.NewGuid()));
+
+            _userMembershipRepositoryMock.Verify(
+                x => x.Add(It.IsAny<UserMembership>()),
+                Times.Never);
 
             _repositoryMock.Verify(
                 x => x.Add(It.IsAny<MembershipPayment>()),
@@ -227,45 +229,86 @@ namespace LibraryManagementAPI.Tests.Services
         }
 
         [Fact]
-        public void Update_ShouldUpdateMembershipPayment_WhenPaymentExists()
+        public void Add_ShouldThrow_WhenUserIdIsEmpty()
         {
-            var payment = CreateMembershipPayment();
-
-            _repositoryMock
-                .Setup(x => x.GetById(payment.Id))
-                .Returns(payment);
-
-            var dto = new MembershipPaymentUpdateDto
+            var dto = new MembershipPaymentCreateDto
             {
-                Amount = 150,
-                PaymentDate = new DateTime(2026, 9, 5),
-                PaymentMethod = "Cash"
+                MembershipPlanId = Guid.NewGuid(),
+                PaymentMethod = "CreditCard"
             };
 
-            _service.Update(payment.Id, dto);
+            Assert.Throws<UnauthorizedAccessException>(
+                () => _service.Add(dto, Guid.Empty));
+        }
 
-            Assert.Equal(150, payment.Amount);
-            Assert.Equal(new DateTime(2026, 9, 5), payment.PaymentDate);
-            Assert.Equal("Cash", payment.PaymentMethod);
+        [Fact]
+        public void MarkAsPaid_ShouldActivateMembershipAndSetDates()
+        {
+            var plan = CreateMembershipPlan();
+            var membership = new UserMembership
+            {
+                Id = Guid.NewGuid(),
+                UserId = Guid.NewGuid(),
+                MembershipPlanId = plan.Id,
+                IsActive = false,
+                IsDeleted = false
+            };
+
+            var payment = CreateMembershipPayment();
+            payment.UserMembershipId = membership.Id;
+
+            _repositoryMock.Setup(x => x.GetById(payment.Id))
+                .Returns(payment);
+
+            _userMembershipRepositoryMock
+                .Setup(x => x.GetById(membership.Id))
+                .Returns(membership);
+
+            _membershipPlanRepositoryMock
+                .Setup(x => x.GetById(plan.Id))
+                .Returns(plan);
+
+            _service.MarkAsPaid(payment.Id);
+
+            Assert.True(payment.IsPaid);
+            Assert.True(membership.IsActive);
+            Assert.Equal(
+                membership.StartDate.AddDays(plan.DurationInDays),
+                membership.EndDate);
 
             _repositoryMock.Verify(
                 x => x.Update(payment),
                 Times.Once);
+
+            _userMembershipRepositoryMock.Verify(
+                x => x.Update(membership),
+                Times.Once);
         }
 
         [Fact]
-        public void Update_ShouldThrowException_WhenPaymentDoesNotExist()
+        public void MarkAsPaid_ShouldThrow_WhenPaymentDoesNotExist()
         {
             var id = Guid.NewGuid();
 
-            _repositoryMock
-                .Setup(x => x.GetById(id))
+            _repositoryMock.Setup(x => x.GetById(id))
+                .Returns((MembershipPayment?)null);
+
+            Assert.Throws<KeyNotFoundException>(
+                () => _service.MarkAsPaid(id));
+        }
+
+        [Fact]
+        public void Update_ShouldThrow_WhenPaymentDoesNotExist()
+        {
+            var id = Guid.NewGuid();
+
+            _repositoryMock.Setup(x => x.GetById(id))
                 .Returns((MembershipPayment?)null);
 
             var dto = new MembershipPaymentUpdateDto
             {
                 Amount = 150,
-                PaymentDate = new DateTime(2026, 9, 5),
+                PaymentDate = DateTime.UtcNow,
                 PaymentMethod = "Cash"
             };
 
@@ -274,12 +317,11 @@ namespace LibraryManagementAPI.Tests.Services
         }
 
         [Fact]
-        public void Delete_ShouldCallRepositoryDelete_WhenPaymentExists()
+        public void Delete_ShouldCallRepository_WhenPaymentIsPending()
         {
             var payment = CreateMembershipPayment();
 
-            _repositoryMock
-                .Setup(x => x.GetById(payment.Id))
+            _repositoryMock.Setup(x => x.GetById(payment.Id))
                 .Returns(payment);
 
             _service.Delete(payment.Id);
@@ -290,12 +332,11 @@ namespace LibraryManagementAPI.Tests.Services
         }
 
         [Fact]
-        public void Delete_ShouldThrowException_WhenPaymentDoesNotExist()
+        public void Delete_ShouldThrow_WhenPaymentDoesNotExist()
         {
             var id = Guid.NewGuid();
 
-            _repositoryMock
-                .Setup(x => x.GetById(id))
+            _repositoryMock.Setup(x => x.GetById(id))
                 .Returns((MembershipPayment?)null);
 
             Assert.Throws<KeyNotFoundException>(
