@@ -1,5 +1,4 @@
-﻿
-using LibraryManagementAPI.Application.DTOs.MembershipPayment;
+﻿using LibraryManagementAPI.Application.DTOs.MembershipPayment;
 using LibraryManagementAPI.Application.Repositories;
 using LibraryManagementAPI.Domain.Entities;
 
@@ -46,12 +45,15 @@ namespace LibraryManagementAPI.Application.Services
 
         public List<MembershipPaymentResponseDto> GetByUserId(Guid userId)
         {
-            var memberships = _userMembershipRepository.GetByUserId(userId);
+            var memberships =
+                _userMembershipRepository.GetByUserId(userId)
+                ?? new List<UserMembership>();
 
             return memberships
                 .SelectMany(membership =>
                     _membershipPaymentRepository
-                        .GetByUserMembershipId(membership.Id))
+                        .GetByUserMembershipId(membership.Id)
+                    ?? new List<MembershipPayment>())
                 .Select(MapToResponseDto)
                 .ToList();
         }
@@ -59,51 +61,64 @@ namespace LibraryManagementAPI.Application.Services
         public void Add(MembershipPaymentCreateDto dto, Guid userId)
         {
             if (userId == Guid.Empty)
+            {
                 throw new UnauthorizedAccessException(
                     "Kullanıcı kimliği doğrulanamadı.");
+            }
 
             if (dto.MembershipPlanId == Guid.Empty)
+            {
                 throw new ArgumentException(
                     "Üyelik planı seçilmelidir.");
+            }
 
             if (string.IsNullOrWhiteSpace(dto.PaymentMethod))
+            {
                 throw new ArgumentException(
                     "Ödeme yöntemi zorunludur.");
+            }
 
-            // Kullanıcının mevcut üyeliklerini getir.
-            var memberships = _userMembershipRepository.GetByUserId(userId);
+            var memberships =
+                _userMembershipRepository.GetByUserId(userId)
+                ?? new List<UserMembership>();
 
-            // Süresi dolmamış aktif üyelik varsa yeni paket almasını engelle.
             var hasActiveMembership = memberships.Any(membership =>
                 membership.IsActive &&
                 membership.EndDate > DateTime.UtcNow);
 
             if (hasActiveMembership)
+            {
                 throw new InvalidOperationException(
                     "Aktif bir üyeliğiniz bulunmaktadır. Yeni paket satın almak için mevcut üyeliğinizin sona ermesini beklemelisiniz.");
+            }
 
-            // Onaylanmamış ve silinmemiş bir ödeme var mı kontrol et.
             var hasPendingPayment = memberships
                 .SelectMany(membership =>
                     _membershipPaymentRepository
-                        .GetByUserMembershipId(membership.Id))
+                        .GetByUserMembershipId(membership.Id)
+                    ?? new List<MembershipPayment>())
                 .Any(payment => !payment.IsPaid && !payment.IsDeleted);
 
             if (hasPendingPayment)
+            {
                 throw new InvalidOperationException(
                     "Onay bekleyen bir ödemeniz bulunmaktadır. Yeni paket satın almadan önce mevcut ödemenizin sonuçlanmasını beklemelisiniz.");
+            }
 
-            // Seçilen paketi getir.
             var plan = _membershipPlanRepository.GetById(
                 dto.MembershipPlanId);
 
             if (plan == null)
-                throw new ArgumentException(
+            {
+                throw new KeyNotFoundException(
                     "Seçilen üyelik planı bulunamadı.");
+            }
 
             if (plan.Price <= 0 || plan.DurationInDays <= 0)
+            {
                 throw new InvalidOperationException(
                     "Üyelik planının fiyatı veya süresi geçersiz.");
+            }
 
             var now = DateTime.UtcNow;
 
@@ -131,43 +146,55 @@ namespace LibraryManagementAPI.Application.Services
 
             membership.MembershipPayments.Add(payment);
 
+            // Üyelik ve ilişkili ödeme birlikte kaydedilir.
             _userMembershipRepository.Add(membership);
         }
+
         public void Update(Guid id, MembershipPaymentUpdateDto dto)
         {
             var payment = _membershipPaymentRepository.GetById(id);
 
             if (payment == null)
+            {
                 throw new KeyNotFoundException(
                     "Üyelik ödeme kaydı bulunamadı.");
+            }
 
             if (payment.IsPaid)
+            {
                 throw new InvalidOperationException(
                     "Onaylanmış bir ödemenin bilgileri değiştirilemez.");
+            }
 
             if (dto.Amount <= 0)
+            {
                 throw new ArgumentException(
                     "Ödeme tutarı sıfırdan büyük olmalıdır.");
+            }
 
             if (string.IsNullOrWhiteSpace(dto.PaymentMethod))
+            {
                 throw new ArgumentException(
                     "Ödeme yöntemi zorunludur.");
+            }
 
-            // Ödeme tutarı ve tarihi kullanıcı girdisiyle değiştirilemez.
-            // Plan fiyatı ve ödeme tarihi sistem tarafından belirlenir.
             var membership = _userMembershipRepository.GetById(
                 payment.UserMembershipId);
 
             if (membership == null)
+            {
                 throw new KeyNotFoundException(
                     "Ödemeye bağlı üyelik bulunamadı.");
+            }
 
             var plan = _membershipPlanRepository.GetById(
                 membership.MembershipPlanId);
 
             if (plan == null)
+            {
                 throw new KeyNotFoundException(
                     "Üyelik planı bulunamadı.");
+            }
 
             payment.Amount = plan.Price;
             payment.PaymentMethod = dto.PaymentMethod.Trim();
@@ -180,25 +207,33 @@ namespace LibraryManagementAPI.Application.Services
             var payment = _membershipPaymentRepository.GetById(id);
 
             if (payment == null)
+            {
                 throw new KeyNotFoundException(
                     "Üyelik ödeme kaydı bulunamadı.");
+            }
 
             if (payment.IsPaid)
+            {
                 return;
+            }
 
             var membership = _userMembershipRepository.GetById(
                 payment.UserMembershipId);
 
             if (membership == null)
+            {
                 throw new KeyNotFoundException(
                     "Ödemeye bağlı üyelik bulunamadı.");
+            }
 
             var plan = _membershipPlanRepository.GetById(
                 membership.MembershipPlanId);
 
             if (plan == null)
+            {
                 throw new KeyNotFoundException(
                     "Üyelik planı bulunamadı.");
+            }
 
             var startDate = DateTime.UtcNow;
 
@@ -209,6 +244,7 @@ namespace LibraryManagementAPI.Application.Services
             _userMembershipRepository.Update(membership);
 
             payment.IsPaid = true;
+
             _membershipPaymentRepository.Update(payment);
         }
 
@@ -217,12 +253,16 @@ namespace LibraryManagementAPI.Application.Services
             var payment = _membershipPaymentRepository.GetById(id);
 
             if (payment == null)
+            {
                 throw new KeyNotFoundException(
                     "Üyelik ödeme kaydı bulunamadı.");
+            }
 
             if (payment.IsPaid)
+            {
                 throw new InvalidOperationException(
                     "Onaylanmış ödeme kaydı silinemez.");
+            }
 
             _membershipPaymentRepository.Delete(payment);
         }
